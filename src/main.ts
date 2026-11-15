@@ -1,9 +1,10 @@
 import "./style.css";
-import { BOARD, type Cell, REGION_NAMES, ringCells, type Square } from "./board";
+import { BOARD, directionName, NEXT, nextOf, REGION_NAMES, type Square } from "./board";
 import { COURSES, isCourseId, SOUVENIRS } from "./courses";
 import { faceOf, rollDie } from "./dice";
 import {
   chooseAirport,
+  chooseFork,
   chooseMeetup,
   currentPlayer,
   type Entry,
@@ -18,12 +19,15 @@ import {
   roll,
   saveGame,
 } from "./game";
+import { boardLayout, MAP, type Point, routePath } from "./mapLayout";
+import { LAND_PATH } from "./worldMap";
 
 const PLAYER_COLORS = ["#e53935", "#1e88e5", "#43a047", "#fb8c00"] as const;
 const SOUVENIR_ICONS: Record<string, string> = { cookie: "🍪", tshirt: "👕", mug: "☕" };
 const SQUARE_ICONS: Record<Square["kind"], string> = {
   start: "🏁",
   city: "",
+  blank: "",
   point: "",
   souvenir: "",
   again: "⏩",
@@ -35,6 +39,7 @@ const SQUARE_ICONS: Record<Square["kind"], string> = {
 const SQUARE_HELP: Record<Square["kind"], string> = {
   start: "スタート",
   city: "ふつうのマス",
+  blank: "ふつうのマス",
   point: "自分のコースのポイントなら、目があまっても止まれる。サイコロで3〜5が出たらチェック",
   souvenir: "止まったらおみやげをゲット",
   again: "もう1回サイコロをふれる",
@@ -51,8 +56,10 @@ let game: Game | null = loadGame();
 let entries: Entry[] = [];
 let justRolled = false;
 
-const wide = window.matchMedia("(min-width: 720px)");
-const cells = (): Cell[] => (wide.matches ? ringCells(14, 12) : ringCells(8, 18));
+const MARKER_SIZE = 6.5;
+const LAYOUT = boardLayout(BOARD, NEXT, MARKER_SIZE * 1.35);
+const MAP_SVG = `<svg class="map-svg" viewBox="0 0 ${MAP.width} ${MAP.height}" aria-hidden="true">
+<path class="land" d="${LAND_PATH}"/><path class="route" d="${routePath(LAYOUT, NEXT)}"/></svg>`;
 
 type Props<K extends keyof HTMLElementTagNameMap> = Omit<Partial<HTMLElementTagNameMap[K]>, "style"> & {
   style?: string;
@@ -88,7 +95,7 @@ const colorOf = (g: Game, player: GamePlayer): string =>
 const token = (g: Game, player: GamePlayer) =>
   el("span", { className: "token", title: player.name, style: `background:${colorOf(g, player)}` }, player.name.slice(0, 1));
 
-const squareTile = (g: Game, square: Square, index: number, cell: Cell) => {
+const squareTile = (g: Game, square: Square, index: number, point: Point) => {
   const icon =
     square.kind === "point"
       ? COURSES[square.courseId].emoji
@@ -99,15 +106,16 @@ const squareTile = (g: Game, square: Square, index: number, cell: Cell) => {
   const here = g.players.filter((p) => p.rank === null && p.position === index);
   const classes = ["square", `kind-${square.kind}`, `region-${square.region}`];
   if (square.kind === "point") classes.push(`course-${square.courseId}`);
+  if (g.phase.type !== "over" && currentPlayer(g).position === index) classes.push("current");
   return el(
     "div",
     {
       className: classes.join(" "),
       title: `${square.name}（${REGION_NAMES[square.region]}）\n${SQUARE_HELP[square.kind]}`,
-      style: `grid-row:${cell.row};grid-column:${cell.col}`,
+      style: `left:${(point.x / MAP.width) * 100}%;top:${(point.y / MAP.height) * 100}%`,
     },
     el("span", { className: "square-icon" }, icon),
-    el("span", { className: "square-name" }, label),
+    square.at ? el("span", { className: "square-name" }, label) : "",
     el("span", { className: "tokens" }, ...here.map((p) => token(g, p))),
   );
 };
@@ -120,6 +128,10 @@ const actions = (g: Game): HTMLElement[] => {
       return isComplete(player)
         ? [button("🌺 ホノルルチャレンジ（1・3・5で成功）", rollWith)]
         : [button("🎲 サイコロをふる", rollWith)];
+    case "fork":
+      return nextOf(player.position).map((to) =>
+        button(`➡️ ${directionName(to)}方面へ`, () => setGame(chooseFork(g, to))),
+      );
     case "point":
       return [button("🎲 チャレンジ（3〜5でチェック）", rollWith)];
     case "airport":
@@ -146,7 +158,7 @@ const ranking = (g: Game) =>
       .map((p) => el("li", {}, token(g, p), ` ${p.rank}位 ${p.name}`)),
   );
 
-const centerPanel = (g: Game, cols: number, rows: number) => {
+const controlPanel = (g: Game) => {
   const player = currentPlayer(g);
   const over = g.phase.type === "over";
   const dice = el(
@@ -158,7 +170,7 @@ const centerPanel = (g: Game, cols: number, rows: number) => {
   );
   return el(
     "div",
-    { className: "center", style: `grid-row:2 / ${rows};grid-column:2 / ${cols}` },
+    { className: "panel" },
     over
       ? el("h2", {}, "🏆 結果発表")
       : el("h2", { className: "turn" }, token(g, player), ` ${player.name} さんの番`),
@@ -190,22 +202,23 @@ const playerSheet = (g: Game, player: GamePlayer) => {
 };
 
 const gameView = (g: Game) => {
-  const layout = cells();
-  const cols = Math.max(...layout.map((c) => c.col));
-  const rows = Math.max(...layout.map((c) => c.row));
   const board = el(
     "div",
-    { className: "board", style: `grid-template-columns:repeat(${cols}, 1fr)` },
-    ...BOARD.map((square, i) => {
-      const cell = layout[i];
-      if (!cell) throw new Error(`盤面の配置が足りません: ${i}`);
-      return squareTile(g, square, i, cell);
-    }),
-    centerPanel(g, cols, rows),
+    {
+      className: "board",
+      style: `--marker:${(MARKER_SIZE / MAP.width) * 100}cqw;aspect-ratio:${MAP.width} / ${MAP.height}`,
+      innerHTML: MAP_SVG,
+    },
+    ...BOARD.map((square, i) => squareTile(g, square, i, LAYOUT[i]!)),
   );
   return [
-    board,
-    el("section", { className: "sheets" }, ...g.players.map((p) => playerSheet(g, p))),
+    el("div", { className: "map-scroll" }, board),
+    el(
+      "div",
+      { className: "play-area" },
+      controlPanel(g),
+      el("section", { className: "sheets" }, ...g.players.map((p) => playerSheet(g, p))),
+    ),
     el("p", { className: "reset" }, button("ゲームをやめて最初から", () => {
       if (confirm("ゲームをやめて最初からにしますか？")) setGame(null);
     }, "action secondary")),
@@ -280,9 +293,16 @@ const setupView = () => {
   ];
 };
 
-const render = (): void => {
-  app.replaceChildren(...(game ? gameView(game) : setupView()));
+const scrollToCurrentSquare = (): void => {
+  const scroller = app.querySelector<HTMLElement>(".map-scroll");
+  const square = scroller?.querySelector<HTMLElement>(".square.current");
+  if (!scroller || !square) return;
+  scroller.scrollLeft = square.offsetLeft - scroller.clientWidth / 2;
 };
 
-wide.addEventListener("change", render);
+const render = (): void => {
+  app.replaceChildren(...(game ? gameView(game) : setupView()));
+  scrollToCurrentSquare();
+};
+
 render();

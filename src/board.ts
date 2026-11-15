@@ -11,17 +11,22 @@ export const REGION_NAMES: Record<Region, string> = {
   oceania: "オセアニア",
 };
 
-type Base = { name: string; region: Region };
+export type LatLon = readonly [lat: number, lon: number];
+
+type Base = { name: string; region: Region; at?: LatLon };
+type Located = Base & { at: LatLon };
 
 export type Square =
-  | (Base & { kind: "start" | "city" | "again" | "airport" | "hotel" | "meetup" | "strike" })
-  | (Base & { kind: "point"; label: string; courseId: CourseId; itemId: string })
+  | (Located & { kind: "start" | "city" | "airport" })
+  | (Base & { kind: "blank" | "again" | "hotel" | "meetup" | "strike" })
+  | (Located & { kind: "point"; label: string; courseId: CourseId; itemId: string })
   | (Base & { kind: "souvenir"; itemId: string });
 
-const city = (region: Region, name: string): Square => ({ kind: "city", region, name });
-const airport = (region: Region, name: string): Square => ({ kind: "airport", region, name });
+const city = (region: Region, name: string, at: LatLon): Square => ({ kind: "city", region, name, at });
+const airport = (region: Region, name: string, at: LatLon): Square => ({ kind: "airport", region, name, at });
+const blank = (region: Region): Square => ({ kind: "blank", region, name: "空欄" });
 const again = (region: Region): Square => ({ kind: "again", region, name: "もう1回" });
-const hotel = (region: Region): Square => ({ kind: "hotel", region, name: "ホテル" });
+const hotel = (region: Region, name = "ホテル", at?: LatLon): Square => ({ kind: "hotel", region, name, ...(at && { at }) });
 const meetup = (region: Region): Square => ({ kind: "meetup", region, name: "まちあわせ" });
 const strike = (region: Region): Square => ({ kind: "strike", region, name: "ストライキ" });
 const point = (
@@ -30,7 +35,8 @@ const point = (
   itemId: string,
   name: string,
   label: string,
-): Square => ({ kind: "point", region, courseId, itemId, name, label });
+  at: LatLon,
+): Square => ({ kind: "point", region, courseId, itemId, name, label, at });
 const souvenir = (region: Region, itemId: string, name: string): Square => ({
   kind: "souvenir",
   region,
@@ -38,74 +44,135 @@ const souvenir = (region: Region, itemId: string, name: string): Square => ({
   name,
 });
 
-export const BOARD: readonly Square[] = [
-  { kind: "start", region: "asia", name: "東京" },
-  city("asia", "ソウル"),
-  souvenir("asia", "cookie", "クッキー"),
-  point("asia", "show", "bali", "バリ島 ガムラン", "ガムラン"),
-  city("asia", "バンコク"),
-  hotel("asia"),
-  point("asia", "nature", "everest", "エベレスト", "エベレスト"),
-  airport("asia", "デリー"),
-  city("asia", "ドバイ"),
-
-  city("europe", "イスタンブール"),
-  point("europe", "show", "vienna", "ウィーン クラシック音楽", "クラシック"),
-  meetup("europe"),
-  souvenir("europe", "tshirt", "Tシャツ"),
-  point("europe", "nature", "matterhorn", "マッターホルン", "マッターホルン"),
-  strike("europe"),
-  city("europe", "パリ"),
-  airport("europe", "ロンドン"),
-
-  city("africa", "カイロ"),
-  again("africa"),
-  point("africa", "show", "marrakech", "マラケシュ ベリーダンス", "ベリーダンス"),
-  hotel("africa"),
-  souvenir("africa", "mug", "マグカップ"),
-  point("africa", "nature", "kilimanjaro", "キリマンジャロ", "キリマンジャロ"),
-  airport("africa", "ケープタウン"),
-
-  city("south-america", "リオデジャネイロ"),
-  souvenir("south-america", "cookie", "クッキー"),
-  point("south-america", "nature", "guiana", "ギアナ高地", "ギアナ高地"),
-  meetup("south-america"),
-  city("south-america", "リマ"),
-  airport("south-america", "ボゴタ"),
-
-  city("north-america", "メキシコシティ"),
-  point("north-america", "show", "las-vegas", "ラスベガス マジックショー", "マジック"),
-  hotel("north-america"),
-  again("north-america"),
-  point("north-america", "nature", "canadian-rockies", "カナディアンロッキー", "ロッキー"),
-  city("north-america", "シカゴ"),
-  point("north-america", "show", "new-york", "ニューヨーク ミュージカル", "ミュージカル"),
-  souvenir("north-america", "tshirt", "Tシャツ"),
-  meetup("north-america"),
-  airport("north-america", "ロサンゼルス"),
-
-  city("oceania", "オークランド"),
-  point("oceania", "nature", "uluru", "ウルル（エアーズロック）", "ウルル"),
-  souvenir("oceania", "mug", "マグカップ"),
-  hotel("oceania"),
-  point("oceania", "show", "sydney", "シドニー オペラ", "オペラ"),
-  strike("oceania"),
-  city("oceania", "ケアンズ"),
-  airport("oceania", "ブリスベン"),
+const FROM_TOKYO: Square[] = [
+  { kind: "start", region: "asia", name: "東京", at: [35.68, 139.69] },
+  airport("asia", "ソウル", [37.46, 126.44]),
+  city("asia", "青島", [36.07, 120.38]),
+  city("asia", "南京", [32.06, 118.8]),
+  city("asia", "上海", [31.23, 121.47]),
 ];
 
+const VIA_TAIPEI: Square[] = [
+  blank("asia"),
+  city("asia", "台北", [25.03, 121.57]),
+  city("asia", "マニラ", [14.6, 120.98]),
+  point("asia", "show", "bali", "バリ島 ガムラン", "ガムラン", [-8.41, 115.19]),
+  blank("asia"),
+  city("asia", "シンガポール", [1.35, 103.82]),
+  city("asia", "クアラルンプール", [3.14, 101.69]),
+];
+
+const VIA_HONG_KONG: Square[] = [
+  again("asia"),
+  hotel("asia", "香港", [22.32, 114.17]),
+  city("asia", "ハノイ", [21.03, 105.85]),
+  meetup("asia"),
+];
+
+const FROM_BANGKOK: Square[] = [
+  city("asia", "バンコク", [13.76, 100.5]),
+  hotel("asia"),
+  point("asia", "nature", "everest", "エベレスト", "エベレスト", [27.99, 86.93]),
+  airport("asia", "デリー", [28.61, 77.21]),
+  city("asia", "ドバイ", [25.2, 55.27]),
+
+  city("europe", "イスタンブール", [41.01, 28.98]),
+  point("europe", "show", "vienna", "ウィーン クラシック音楽", "クラシック", [48.21, 16.37]),
+  meetup("europe"),
+  souvenir("europe", "tshirt", "Tシャツ"),
+  point("europe", "nature", "matterhorn", "マッターホルン", "マッターホルン", [45.98, 7.66]),
+  strike("europe"),
+  city("europe", "パリ", [48.86, 2.35]),
+  airport("europe", "ロンドン", [51.51, -0.13]),
+
+  city("africa", "カイロ", [30.04, 31.24]),
+  again("africa"),
+  point("africa", "show", "marrakech", "マラケシュ ベリーダンス", "ベリーダンス", [31.63, -7.99]),
+  hotel("africa"),
+  souvenir("africa", "mug", "マグカップ"),
+  point("africa", "nature", "kilimanjaro", "キリマンジャロ", "キリマンジャロ", [-3.07, 37.35]),
+  airport("africa", "ケープタウン", [-33.92, 18.42]),
+
+  city("south-america", "リオデジャネイロ", [-22.91, -43.17]),
+  souvenir("south-america", "cookie", "クッキー"),
+  point("south-america", "nature", "guiana", "ギアナ高地", "ギアナ高地", [5.14, -60.76]),
+  meetup("south-america"),
+  city("south-america", "リマ", [-12.05, -77.04]),
+  airport("south-america", "ボゴタ", [4.71, -74.07]),
+
+  city("north-america", "メキシコシティ", [19.43, -99.13]),
+  point("north-america", "show", "las-vegas", "ラスベガス マジックショー", "マジック", [36.17, -115.14]),
+  hotel("north-america"),
+  again("north-america"),
+  point("north-america", "nature", "canadian-rockies", "カナディアンロッキー", "ロッキー", [51.43, -116.18]),
+  city("north-america", "シカゴ", [41.88, -87.63]),
+  point("north-america", "show", "new-york", "ニューヨーク ミュージカル", "ミュージカル", [40.71, -74.01]),
+  souvenir("north-america", "tshirt", "Tシャツ"),
+  meetup("north-america"),
+  airport("north-america", "ロサンゼルス", [34.05, -118.24]),
+
+  city("oceania", "オークランド", [-36.85, 174.76]),
+  point("oceania", "nature", "uluru", "ウルル（エアーズロック）", "ウルル", [-25.34, 131.04]),
+  souvenir("oceania", "mug", "マグカップ"),
+  hotel("oceania"),
+  point("oceania", "show", "sydney", "シドニー オペラ", "オペラ", [-33.86, 151.21]),
+  strike("oceania"),
+  city("oceania", "ケアンズ", [-16.92, 145.77]),
+  airport("oceania", "ブリスベン", [-27.47, 153.03]),
+];
+
+export const BOARD: readonly Square[] = [...FROM_TOKYO, ...VIA_TAIPEI, ...VIA_HONG_KONG, ...FROM_BANGKOK];
+
+const buildNext = (): number[][] => {
+  const taipei = FROM_TOKYO.length;
+  const hongKong = taipei + VIA_TAIPEI.length;
+  const bangkok = hongKong + VIA_HONG_KONG.length;
+  const next = BOARD.map((_, i) => [i + 1]);
+  next[taipei - 1] = [taipei, hongKong];
+  next[hongKong - 1] = [bangkok];
+  next[BOARD.length - 1] = [0];
+  return next;
+};
+
+export const NEXT: readonly (readonly number[])[] = buildNext();
+
+export const PREV: readonly (readonly number[])[] = BOARD.map((_, i) =>
+  NEXT.flatMap((targets, from) => (targets.includes(i) ? [from] : [])),
+);
+
+export const isPosition = (value: unknown): value is number =>
+  Number.isInteger(value) && (value as number) >= 0 && (value as number) < BOARD.length;
+
 export const squareAt = (position: number): Square => {
-  const square = BOARD[((position % BOARD.length) + BOARD.length) % BOARD.length];
+  const square = BOARD[position];
   if (!square) throw new RangeError(`マスがありません: ${position}`);
   return square;
 };
 
-export type Cell = { row: number; col: number };
+export const nextOf = (position: number): readonly number[] => {
+  const targets = NEXT[position];
+  if (!targets) throw new RangeError(`マスがありません: ${position}`);
+  return targets;
+};
 
-export const ringCells = (cols: number, rows: number): Cell[] => {
-  const top = Array.from({ length: cols }, (_, i) => ({ row: 1, col: i + 1 }));
-  const right = Array.from({ length: rows - 2 }, (_, i) => ({ row: i + 2, col: cols }));
-  const bottom = Array.from({ length: cols }, (_, i) => ({ row: rows, col: cols - i }));
-  const left = Array.from({ length: rows - 2 }, (_, i) => ({ row: rows - 1 - i, col: 1 }));
-  return [...top, ...right, ...bottom, ...left];
+export const nearestWithin = (from: number, range: number, matches: (square: Square) => boolean): number | null => {
+  const seen = new Set([from]);
+  let frontier = [from];
+  for (let d = 1; d <= range; d++) {
+    frontier = [...new Set(frontier.flatMap((p) => [...nextOf(p), ...(PREV[p] ?? [])]))].filter((p) => !seen.has(p));
+    frontier.forEach((p) => seen.add(p));
+    const found = frontier.find((p) => matches(squareAt(p)));
+    if (found !== undefined) return found;
+  }
+  return null;
+};
+
+export const directionName = (position: number): string => {
+  let p = position;
+  for (let i = 0; i < BOARD.length; i++) {
+    const square = squareAt(p);
+    if (square.at) return square.name;
+    p = nextOf(p)[0]!;
+  }
+  throw new Error(`行き先の地名が見つかりません: ${position}`);
 };

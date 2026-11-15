@@ -1,4 +1,4 @@
-import { BOARD, type Square, squareAt } from "./board";
+import { isPosition, nearestWithin, nextOf, type Square, squareAt } from "./board";
 import { type CourseId, isCourseId, itemsOf } from "./courses";
 
 export const MAX_PLAYERS = 4;
@@ -6,7 +6,7 @@ export const POINT_SUCCESS: readonly number[] = [3, 4, 5];
 export const HONOLULU_SUCCESS: readonly number[] = [1, 3, 5];
 const HOTEL_RANGE = 5;
 const LOG_LIMIT = 30;
-const STORAGE_KEY = "sugoroku:game";
+const STORAGE_KEY = "sugoroku:game:v2";
 
 export type Entry = { name: string; courseId: CourseId };
 
@@ -21,6 +21,7 @@ export type GamePlayer = {
 
 export type Phase =
   | { type: "move" }
+  | { type: "fork"; steps: number }
   | { type: "point"; itemId: string }
   | { type: "airport" }
   | { type: "meetup" }
@@ -110,19 +111,10 @@ const endTurn = (game: Game): Game => {
   return { ...game, current: next, phase: { type: "move" } };
 };
 
-const nearestHotel = (from: number): number | null => {
-  for (let d = 1; d <= HOTEL_RANGE; d++) {
-    for (const position of [from + d, from - d]) {
-      if (squareAt(position).kind === "hotel") return (position + BOARD.length) % BOARD.length;
-    }
-  }
-  return null;
-};
-
 const night = (game: Game): Game => {
   const players = game.players.map((p, i) => {
     if (i === game.current || !isPlaying(p) || squareAt(p.position).kind === "hotel") return p;
-    return { ...p, position: nearestHotel(p.position) ?? p.position };
+    return { ...p, position: nearestWithin(p.position, HOTEL_RANGE, (s) => s.kind === "hotel") ?? p.position };
   });
   return addLog({ ...game, players }, "🌙 夜になった！近くにいる人はホテルへ");
 };
@@ -160,16 +152,25 @@ const land = (game: Game): Game => {
   }
 };
 
-const move = (game: Game, steps: number): Game => {
+const advance = (game: Game, steps: number, firstStep?: number): Game => {
   const player = currentPlayer(game);
   let position = player.position;
-  for (let i = 0; i < steps; i++) {
-    position = (position + 1) % BOARD.length;
+  for (let left = steps; left > 0; left--) {
+    const targets = left === steps && firstStep !== undefined ? [firstStep] : nextOf(position);
+    if (targets.length > 1) {
+      return addLog(
+        { ...updateCurrent(game, (p) => ({ ...p, position })), phase: { type: "fork", steps: left } },
+        `${player.name}：「${squareAt(position).name}」で分かれ道。どちらへ進む？`,
+      );
+    }
+    position = targets[0]!;
     if (isOpenPoint(player, squareAt(position))) break;
   }
-  const moved = updateCurrent(game, (p) => ({ ...p, position }));
-  return land(addLog(moved, `${player.name}：${steps}が出て「${squareAt(position).name}」へ`));
+  return land(addLog(updateCurrent(game, (p) => ({ ...p, position })), `${player.name}：「${squareAt(position).name}」へ`));
 };
+
+const move = (game: Game, steps: number): Game =>
+  advance(addLog(game, `${currentPlayer(game).name}：${steps}が出た`), steps);
 
 const honolulu = (game: Game, value: number): Game => {
   const player = currentPlayer(game);
@@ -215,9 +216,15 @@ export const chooseAirport = (game: Game, fly: boolean): Game => {
   const player = currentPlayer(game);
   let to = player.position;
   do {
-    to = (to + 1) % BOARD.length;
+    to = nextOf(to)[0]!;
   } while (squareAt(to).kind !== "airport");
   return endTurn(addLog(updateCurrent(game, (p) => ({ ...p, position: to })), `${player.name}：✈️ ${squareAt(to).name}へひとっ飛び`));
+};
+
+export const chooseFork = (game: Game, to: number): Game => {
+  if (game.phase.type !== "fork") throw new Error(`今は分かれ道を選べません（現在: ${game.phase.type}）`);
+  if (!nextOf(currentPlayer(game).position).includes(to)) throw new Error(`その方向には進めません: ${to}`);
+  return advance({ ...game, phase: { type: "move" } }, game.phase.steps, to);
 };
 
 export const chooseMeetup = (game: Game, targetId: string | null): Game => {
@@ -231,7 +238,7 @@ export const chooseMeetup = (game: Game, targetId: string | null): Game => {
   );
 };
 
-const PHASE_TYPES: readonly string[] = ["move", "point", "airport", "meetup", "over"];
+const PHASE_TYPES: readonly string[] = ["move", "fork", "point", "airport", "meetup", "over"];
 
 const isGamePlayer = (value: unknown): value is GamePlayer => {
   if (typeof value !== "object" || value === null) return false;
@@ -240,7 +247,7 @@ const isGamePlayer = (value: unknown): value is GamePlayer => {
     typeof p.id === "string" &&
     typeof p.name === "string" &&
     isCourseId(p.courseId) &&
-    Number.isInteger(p.position) &&
+    isPosition(p.position) &&
     Array.isArray(p.checked) &&
     p.checked.every((c) => typeof c === "string") &&
     (p.rank === null || Number.isInteger(p.rank))
@@ -262,6 +269,7 @@ const isGame = (value: unknown): value is Game => {
     typeof phase?.type === "string" &&
     PHASE_TYPES.includes(phase.type) &&
     (phase.type !== "point" || typeof phase.itemId === "string") &&
+    (phase.type !== "fork" || (Number.isInteger(phase.steps) && (phase.steps as number) >= 1 && (phase.steps as number) <= 6)) &&
     (v.lastRoll === null || Number.isInteger(v.lastRoll)) &&
     Array.isArray(v.log)
   );

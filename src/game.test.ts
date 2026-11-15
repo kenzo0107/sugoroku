@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { BOARD, type Square } from "./board";
+import { BOARD, nearestWithin, nextOf, PREV, type Square } from "./board";
 import { itemsOf } from "./courses";
 import {
   chooseAirport,
+  chooseFork,
   chooseMeetup,
   type Game,
   type GamePlayer,
@@ -20,6 +21,13 @@ const indexWhere = (pred: (s: Square) => boolean, from = 0): number => {
 };
 const pointIndex = (itemId: string) => indexWhere((s) => s.kind === "point" && s.itemId === itemId);
 const kindIndex = (kind: Square["kind"], from = 0) => indexWhere((s) => s.kind === kind, from);
+const nameIndex = (name: string) => indexWhere((s) => s.name === name);
+const before = (position: number): number => {
+  const [prev, ...others] = PREV[position] ?? [];
+  if (prev === undefined || others.length > 0) throw new Error(`手前のマスが1つに決まりません: ${position}`);
+  return prev;
+};
+const after = (position: number): number => nextOf(position)[0]!;
 
 const twoPlayers = () =>
   newGame([
@@ -50,14 +58,21 @@ describe("newGame", () => {
 
 describe("移動", () => {
   it("出た目の数だけ進み、次の人の番になる", () => {
-    const game = roll(twoPlayers(), 1);
-    expect(game.players[0]?.position).toBe(1);
+    const qingdao = nameIndex("青島");
+    const game = roll(patch(twoPlayers(), 0, { position: qingdao }), 1);
+    expect(game.players[0]?.position).toBe(after(qingdao));
     expect(game.current).toBe(1);
+  });
+
+  it("東京から1が出ると、ソウルの空港に着く", () => {
+    const game = roll(twoPlayers(), 1);
+    expect(game.players[0]?.position).toBe(nameIndex("ソウル"));
+    expect(game.phase).toEqual({ type: "airport" });
   });
 
   it("自分のコースの未チェックの行き先は、目があまっても止まってチャレンジになる", () => {
     const everest = pointIndex("everest");
-    const start = patch(twoPlayers(), 0, { position: everest - 1 });
+    const start = patch(twoPlayers(), 0, { position: before(everest) });
     const game = roll(start, 6);
     expect(game.players[0]?.position).toBe(everest);
     expect(game.phase).toEqual({ type: "point", itemId: "everest" });
@@ -66,8 +81,8 @@ describe("移動", () => {
 
   it("他のコースの行き先は通り過ぎる", () => {
     const bali = pointIndex("bali");
-    const game = roll(patch(twoPlayers(), 0, { position: bali - 1 }), 2);
-    expect(game.players[0]?.position).toBe(bali + 1);
+    const game = roll(patch(twoPlayers(), 0, { position: before(bali) }), 2);
+    expect(game.players[0]?.position).toBe(after(bali));
   });
 
   it("盤面の最後から先は東京側へ一周する", () => {
@@ -76,8 +91,49 @@ describe("移動", () => {
   });
 });
 
+describe("分かれ道", () => {
+  const shanghai = () => nameIndex("上海");
+  const [viaTaipei, viaHongKong] = nextOf(nameIndex("上海")) as [number, number];
+
+  it("上海を通り過ぎるときは、残りの目の数を持ったまま道を選ぶ", () => {
+    const game = roll(patch(twoPlayers(), 0, { position: before(shanghai()) }), 3);
+    expect(game.players[0]?.position).toBe(shanghai());
+    expect(game.phase).toEqual({ type: "fork", steps: 2 });
+    expect(game.current).toBe(0);
+  });
+
+  it("選んだ道を残りの目の数だけ進む", () => {
+    const forked = roll(patch(twoPlayers(), 0, { position: before(shanghai()) }), 3);
+    expect(BOARD[chooseFork(forked, viaTaipei).players[0]!.position]?.name).toBe("台北");
+    expect(BOARD[chooseFork(forked, viaHongKong).players[0]!.position]?.name).toBe("香港");
+  });
+
+  it("上海にちょうど止まったときは選ばず、次の番に出発するときに選ぶ", () => {
+    const stopped = roll(patch(twoPlayers(), 0, { position: before(shanghai()) }), 1);
+    expect(stopped.players[0]?.position).toBe(shanghai());
+    expect(stopped.current).toBe(1);
+
+    const departing = roll(patch(twoPlayers(), 0, { position: shanghai() }), 4);
+    expect(departing.phase).toEqual({ type: "fork", steps: 4 });
+  });
+
+  it("選んだ道の先に自分のコースの行き先があれば、目があまっても止まる", () => {
+    const solo = newGame([{ name: "A", courseId: "show" }]);
+    const forked = roll(patch(solo, 0, { position: shanghai() }), 6);
+    const game = chooseFork(forked, viaTaipei);
+    expect(game.players[0]?.position).toBe(pointIndex("bali"));
+    expect(game.phase).toEqual({ type: "point", itemId: "bali" });
+  });
+
+  it("分かれ道の先にない方向や、選択待ちでないときは選べない", () => {
+    const forked = roll(patch(twoPlayers(), 0, { position: shanghai() }), 2);
+    expect(() => chooseFork(forked, nameIndex("バンコク"))).toThrow();
+    expect(() => chooseFork(twoPlayers(), viaTaipei)).toThrow();
+  });
+});
+
 describe("行き先のチャレンジ", () => {
-  const atEverest = () => roll(patch(twoPlayers(), 0, { position: pointIndex("everest") - 1 }), 1);
+  const atEverest = () => roll(patch(twoPlayers(), 0, { position: before(pointIndex("everest")) }), 1);
 
   it.each([3, 4, 5])("%i が出たらチェックされる", (value) => {
     const game = roll(atEverest(), value);
@@ -95,13 +151,15 @@ describe("行き先のチャレンジ", () => {
 describe("特別なマス", () => {
   it("おみやげマスでおみやげをゲットする", () => {
     const cookie = indexWhere((s) => s.kind === "souvenir" && s.itemId === "cookie");
-    const game = roll(patch(twoPlayers(), 0, { position: cookie - 1 }), 1);
+    const game = roll(patch(twoPlayers(), 0, { position: before(cookie) }), 1);
     expect(game.players[0]?.checked).toEqual(["cookie"]);
   });
 
   it("もう1回マスでは同じ人がもう一度ふれる", () => {
     const again = kindIndex("again");
-    const game = roll(patch(twoPlayers(), 0, { position: again - 1 }), 1);
+    const forked = roll(patch(twoPlayers(), 0, { position: nameIndex("上海") }), 1);
+    const game = chooseFork(forked, again);
+    expect(game.players[0]?.position).toBe(again);
     expect(game.current).toBe(0);
     expect(game.phase).toEqual({ type: "move" });
   });
@@ -109,7 +167,7 @@ describe("特別なマス", () => {
   it("空港では次の空港へ飛ぶか選べる", () => {
     const first = kindIndex("airport");
     const second = kindIndex("airport", first + 1);
-    const landed = roll(patch(twoPlayers(), 0, { position: first - 1 }), 1);
+    const landed = roll(patch(twoPlayers(), 0, { position: before(first) }), 1);
     expect(landed.phase).toEqual({ type: "airport" });
     expect(chooseAirport(landed, true).players[0]?.position).toBe(second);
     expect(chooseAirport(landed, false).players[0]?.position).toBe(first);
@@ -118,7 +176,7 @@ describe("特別なマス", () => {
   it("誰かがストライキマスにいると空港から飛べない", () => {
     const airport = kindIndex("airport");
     let game = patch(twoPlayers(), 1, { position: kindIndex("strike") });
-    game = patch(game, 0, { position: airport - 1 });
+    game = patch(game, 0, { position: before(airport) });
     expect(isStrikeActive(game)).toBe(true);
     const landed = roll(game, 1);
     expect(landed.phase).toEqual({ type: "move" });
@@ -132,11 +190,9 @@ describe("特別なマス", () => {
       { name: "B", courseId: "show" },
       { name: "C", courseId: "show" },
     ]);
-    let game = patch(players, 0, { position: hotel - 1 });
-    game = patch(game, 1, { position: hotel + 3 });
-    const far = BOARD.findIndex((_, i) =>
-      Array.from({ length: 11 }, (_, d) => BOARD[(i + d - 5 + BOARD.length) % BOARD.length]).every((s) => s?.kind !== "hotel"),
-    );
+    let game = patch(players, 0, { position: before(hotel) });
+    game = patch(game, 1, { position: nameIndex("台北") });
+    const far = BOARD.findIndex((_, i) => nearestWithin(i, 5, (s) => s.kind === "hotel") === null);
     game = patch(game, 2, { position: far });
     const next = roll(game, 1);
     expect(next.players.map((p) => p.position)).toEqual([hotel, hotel, far]);
@@ -144,7 +200,7 @@ describe("特別なマス", () => {
 
   it("まちあわせでは他の人のマスへ移動できる", () => {
     const meetup = kindIndex("meetup");
-    let game = patch(twoPlayers(), 0, { position: meetup - 1 });
+    let game = patch(twoPlayers(), 0, { position: before(meetup) });
     game = patch(game, 1, { position: 30 });
     const landed = roll(game, 1);
     expect(landed.phase).toEqual({ type: "meetup" });
@@ -179,7 +235,8 @@ describe("ホノルルチャレンジ", () => {
       { name: "B", courseId: "show" },
       { name: "C", courseId: "show" },
     ]);
-    const game = roll(patch(three, 0, { checked: allItems("nature") }), 1);
+    const start = three.players.reduce((g, _, i) => patch(g, i, { position: nameIndex("青島") }), three);
+    const game = roll(patch(start, 0, { checked: allItems("nature") }), 1);
     const afterB = roll(game, 1);
     expect(afterB.current).toBe(2);
     expect(roll(afterB, 1).current).toBe(1);
@@ -208,6 +265,17 @@ describe("不正な操作", () => {
 describe("保存と読み込み", () => {
   beforeEach(() => localStorage.clear());
 
+  it("分かれ道を選ぶ途中のゲームも読み込める", () => {
+    const game = roll(patch(twoPlayers(), 0, { position: nameIndex("上海") }), 5);
+    saveGame(game);
+    expect(loadGame()).toEqual(game);
+  });
+
+  it("盤面にない位置のデータは読み込まない", () => {
+    saveGame(patch(twoPlayers(), 0, { position: BOARD.length }));
+    expect(loadGame()).toBeNull();
+  });
+
   it("保存したゲームを読み込める", () => {
     const game = roll(twoPlayers(), 3);
     saveGame(game);
@@ -226,7 +294,7 @@ describe("保存と読み込み", () => {
   });
 
   it("壊れたデータは読み込まない", () => {
-    localStorage.setItem("sugoroku:game", "{broken");
+    localStorage.setItem("sugoroku:game:v2", "{broken");
     expect(loadGame()).toBeNull();
   });
 });
