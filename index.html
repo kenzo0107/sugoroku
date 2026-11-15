@@ -10,6 +10,10 @@
       <h1>🌏 世界のすごろく チェックシート</h1>
     </header>
     <main>
+      <section class="dice">
+        <button id="roll" type="button" class="dice-button">🎲 サイコロをふる</button>
+        <output id="dice-result" class="dice-result" aria-live="polite"></output>
+      </section>
       <form id="add-player" class="add-player">
         <input id="player-name" type="text" placeholder="なまえ" maxlength="20" required />
         <select id="player-course" required></select>

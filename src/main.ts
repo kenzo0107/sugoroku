@@ -1,4 +1,5 @@
 import "./style.css";
+import { faceOf, rollDie } from "./dice";
 import { COURSES, type Item, isCourseId, SOUVENIRS } from "./courses";
 import {
   addPlayer,
@@ -22,6 +23,8 @@ const form = $<HTMLFormElement>("#add-player");
 const nameInput = $<HTMLInputElement>("#player-name");
 const courseSelect = $<HTMLSelectElement>("#player-course");
 const playersSection = $<HTMLElement>("#players");
+const rollButton = $<HTMLButtonElement>("#roll");
+const diceResult = $<HTMLOutputElement>("#dice-result");
 
 const el = <K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -36,7 +39,19 @@ const el = <K extends keyof HTMLElementTagNameMap>(
 const update = (next: Player[]): void => {
   players = next;
   savePlayers(players);
-  render();
+  rollButton.addEventListener("click", () => {
+  const value = rollDie();
+  diceResult.replaceChildren(
+    el("span", { className: "dice-face" }, faceOf(value)),
+    el("span", { className: "dice-number" }, String(value)),
+  );
+  // 同じ目が続いても毎回アニメーションさせるため、クラスを付け直す前にリフローを挟む
+  diceResult.classList.remove("rolling");
+  void diceResult.offsetWidth;
+  diceResult.classList.add("rolling");
+});
+
+render();
 };
 
 const checklist = (player: Player, title: string, items: Item[]) =>
@@ -111,6 +126,18 @@ form.addEventListener("submit", (e) => {
   update(addPlayer(players, name, courseId));
   form.reset();
   nameInput.focus();
+});
+
+rollButton.addEventListener("click", () => {
+  const value = rollDie();
+  diceResult.replaceChildren(
+    el("span", { className: "dice-face" }, faceOf(value)),
+    el("span", { className: "dice-number" }, String(value)),
+  );
+  // 同じ目が続いても毎回アニメーションさせるため、クラスを付け直す前にリフローを挟む
+  diceResult.classList.remove("rolling");
+  void diceResult.offsetWidth;
+  diceResult.classList.add("rolling");
 });
 
 render();

@@ -43,3 +43,12 @@ it("名前はHTMLとして解釈されない", async () => {
   expect(document.querySelector(".card img")).toBeNull();
   expect(document.querySelector(".card h2")?.textContent).toBe("<img src=x>");
 });
+
+it("サイコロをふると1〜6の目が表示される", async () => {
+  await import("./main");
+  document.querySelector<HTMLButtonElement>("#roll")!.click();
+  const value = Number(document.querySelector(".dice-number")?.textContent);
+  expect(value).toBeGreaterThanOrEqual(1);
+  expect(value).toBeLessThanOrEqual(6);
+  expect(Number.isInteger(value)).toBe(true);
+});
