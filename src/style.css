@@ -223,3 +223,294 @@ main {
     animation: none;
   }
 }
+
+.header-link {
+  display: inline-block;
+  margin-top: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.setup {
+  max-width: 640px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setup h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.setup .add-player {
+  margin-bottom: 0;
+}
+
+.entries {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.entries li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--card);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.entries .remove {
+  margin-left: auto;
+}
+
+.rules {
+  background: var(--card);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.rules summary {
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.rules li {
+  margin: 6px 0;
+}
+
+.action {
+  font: inherit;
+  font-weight: bold;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  background: var(--show);
+  color: #fff;
+  cursor: pointer;
+}
+
+.action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.action.secondary {
+  background: #fff;
+  color: var(--text);
+  border: 1px solid #ccc;
+}
+
+.token {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.8em;
+  font-weight: bold;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.4);
+  flex-shrink: 0;
+}
+
+.board {
+  display: grid;
+  gap: 3px;
+  padding: 6px;
+  border-radius: 16px;
+  background: #4fa3d9;
+}
+
+.square {
+  --tile: #ffffff;
+  position: relative;
+  aspect-ratio: 1;
+  min-width: 0;
+  background: var(--tile);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  overflow: hidden;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.region-asia { --tile: #fff3d6; }
+.region-europe { --tile: #e3ecff; }
+.region-africa { --tile: #ffe2cc; }
+.region-south-america { --tile: #ddf5d8; }
+.region-north-america { --tile: #f1e3ff; }
+.region-oceania { --tile: #d8f4f4; }
+
+.square.kind-point {
+  border: 3px solid var(--nature);
+}
+
+.square.kind-point.course-show {
+  border-color: var(--show);
+}
+
+.square.kind-start {
+  background: var(--gold);
+}
+
+.square.kind-strike {
+  background: #ffd6d6;
+}
+
+.square-icon {
+  font-size: clamp(0.8rem, 2.4vw, 1.4rem);
+}
+
+.square-name {
+  font-size: clamp(0.5rem, 1.3vw, 0.72rem);
+  font-weight: bold;
+  word-break: break-all;
+}
+
+.tokens {
+  position: absolute;
+  inset: auto 0 1px 0;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  font-size: clamp(0.55rem, 1.6vw, 0.9rem);
+}
+
+.tokens .token {
+  margin: 0 -3px;
+}
+
+.center {
+  background: rgb(255 255 255 / 0.92);
+  border-radius: 12px;
+  margin: 4px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  overflow: auto;
+  min-width: 0;
+}
+
+.center h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.strike-banner {
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #ffd6d6;
+  color: #b71c1c;
+  font-weight: bold;
+  font-size: 0.85rem;
+}
+
+.center .dice-result {
+  min-height: 4rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.log li {
+  padding: 3px 0;
+  border-bottom: 1px dashed #ddd;
+}
+
+.log li:first-child {
+  color: var(--text);
+  font-weight: bold;
+}
+
+.ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 1.1rem;
+}
+
+.ranking li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0;
+}
+
+.sheets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.sheet {
+  --accent: var(--nature);
+  background: var(--card);
+  border-radius: 12px;
+  border-top: 6px solid var(--accent);
+  padding: 12px;
+}
+
+.sheet.course-show {
+  --accent: var(--show);
+}
+
+.sheet.active {
+  outline: 3px solid var(--gold);
+}
+
+.sheet h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sheet-items {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  font-size: 0.9rem;
+}
+
+.sheet-items li.done {
+  color: var(--muted);
+}
+
+.reset {
+  text-align: center;
+  margin-top: 24px;
+}
