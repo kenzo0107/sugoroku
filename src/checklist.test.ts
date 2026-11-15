@@ -4,7 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 beforeEach(() => {
   localStorage.clear();
   vi.resetModules();
-  const html = readFileSync("index.html", "utf8");
+  const html = readFileSync("checklist.html", "utf8");
   document.body.innerHTML = new DOMParser().parseFromString(html, "text/html").body.innerHTML;
 });
 
@@ -15,7 +15,7 @@ const join = (name: string, courseId: string) => {
 };
 
 it("参加するとコースの行き先とおみやげがチェックリストで表示される", async () => {
-  await import("./main");
+  await import("./checklist");
   join("はなこ", "show");
 
   const card = document.querySelector(".card")!;
@@ -26,7 +26,7 @@ it("参加するとコースの行き先とおみやげがチェックリスト�
 });
 
 it("チェックすると進捗が増え、全部チェックでコンプリートになる", async () => {
-  await import("./main");
+  await import("./checklist");
   join("たろう", "nature");
 
   const boxes = () => document.querySelectorAll<HTMLInputElement>(".card input[type=checkbox]");
@@ -38,14 +38,14 @@ it("チェックすると進捗が増え、全部チェックでコンプリー�
 });
 
 it("名前はHTMLとして解釈されない", async () => {
-  await import("./main");
+  await import("./checklist");
   join("<img src=x>", "nature");
   expect(document.querySelector(".card img")).toBeNull();
   expect(document.querySelector(".card h2")?.textContent).toBe("<img src=x>");
 });
 
 it("サイコロをふると1〜6の目が表示される", async () => {
-  await import("./main");
+  await import("./checklist");
   document.querySelector<HTMLButtonElement>("#roll")!.click();
   const value = Number(document.querySelector(".dice-number")?.textContent);
   expect(value).toBeGreaterThanOrEqual(1);
