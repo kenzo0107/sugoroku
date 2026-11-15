@@ -7,7 +7,7 @@ export type Course = {
   spots: Item[];
 };
 
-export type CourseId = "nature" | "show";
+export type CourseId = "nature" | "show" | "adventure" | "gourmet";
 
 export const SOUVENIRS: Item[] = [
   { id: "cookie", name: "クッキー" },
@@ -40,6 +40,32 @@ export const COURSES: Record<CourseId, Course> = {
       { id: "las-vegas", name: "ラスベガス マジックショー" },
       { id: "new-york", name: "ニューヨーク ミュージカル" },
       { id: "sydney", name: "シドニー オペラ" },
+    ],
+  },
+  adventure: {
+    id: "adventure",
+    name: "冒険アクティビティコース",
+    emoji: "🧭",
+    spots: [
+      { id: "ganges", name: "ガンジス川" },
+      { id: "victoria-falls", name: "ビクトリアの滝" },
+      { id: "silk-road", name: "シルクロードドライブ" },
+      { id: "niagara", name: "ナイアガラの滝" },
+      { id: "amazon", name: "アマゾン川" },
+      { id: "iguazu", name: "イグアスの滝" },
+    ],
+  },
+  gourmet: {
+    id: "gourmet",
+    name: "世界のグルメコース",
+    emoji: "🍽️",
+    spots: [
+      { id: "delhi-curry", name: "デリー インドカレー" },
+      { id: "cape-town-game-meat", name: "ケープタウン ゲームミート" },
+      { id: "paris-galette", name: "パリ ガレット" },
+      { id: "istanbul-kebab", name: "イスタンブール ケバブサンド" },
+      { id: "chicago-burger", name: "シカゴ ハンバーガー" },
+      { id: "rio-churrasco", name: "リオデジャネイロ シュラスコ" },
     ],
   },
 };

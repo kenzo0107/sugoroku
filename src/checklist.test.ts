@@ -52,3 +52,14 @@ it("サイコロをふると1〜6の目が表示される", async () => {
   expect(value).toBeLessThanOrEqual(6);
   expect(Number.isInteger(value)).toBe(true);
 });
+
+it("冒険アクティビティコースと世界のグルメコースも選べる", async () => {
+  await import("./checklist");
+  join("じろう", "adventure");
+  join("さくら", "gourmet");
+
+  const [adventure, gourmet] = document.querySelectorAll(".card");
+  expect(adventure?.textContent).toContain("イグアスの滝");
+  expect(gourmet?.textContent).toContain("リオデジャネイロ シュラスコ");
+  expect(gourmet?.querySelectorAll("input[type=checkbox]")).toHaveLength(9);
+});
