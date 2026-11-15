@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>世界のすごろく チェックシート</title>
+  </head>
+  <body>
+    <header class="app-header">
+      <h1>🌏 世界のすごろく チェックシート</h1>
+    </header>
+    <main>
+      <form id="add-player" class="add-player">
+        <input id="player-name" type="text" placeholder="なまえ" maxlength="20" required />
+        <select id="player-course" required></select>
+        <button type="submit">参加する</button>
+      </form>
+      <section id="players" class="players"></section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

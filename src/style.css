@@ -1,0 +1,167 @@
+:root {
+  --bg: #fdf6e3;
+  --card: #ffffff;
+  --text: #2b2b2b;
+  --muted: #6b6b6b;
+  --nature: #2e8b57;
+  --show: #c2185b;
+  --gold: #f9a825;
+  font-family: "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+.app-header {
+  padding: 16px;
+  text-align: center;
+  background: linear-gradient(90deg, var(--nature), var(--show));
+  color: #fff;
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: clamp(1.2rem, 4vw, 1.8rem);
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.add-player {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.add-player input,
+.add-player select,
+.add-player button {
+  font: inherit;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.add-player input {
+  flex: 1 1 160px;
+}
+
+.add-player select {
+  flex: 2 1 220px;
+}
+
+.add-player button {
+  background: var(--gold);
+  border: none;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.players {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.empty {
+  color: var(--muted);
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+.card {
+  --accent: var(--nature);
+  background: var(--card);
+  border-radius: 12px;
+  border-top: 8px solid var(--accent);
+  padding: 16px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.card.course-show {
+  --accent: var(--show);
+}
+
+.card.complete {
+  outline: 3px solid var(--gold);
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.3rem;
+}
+
+.course-name {
+  margin: 4px 0;
+  color: var(--accent);
+  font-weight: bold;
+}
+
+.progress {
+  margin: 4px 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.card progress {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.checklist {
+  border: 1px solid #eee;
+  border-radius: 8px;
+  margin: 0;
+  padding: 8px 12px;
+}
+
+.checklist legend {
+  font-weight: bold;
+  padding: 0 4px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.item input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--accent);
+}
+
+.item input:checked + span {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+.remove {
+  align-self: flex-end;
+  font: inherit;
+  font-size: 0.85rem;
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 4px 10px;
+  color: var(--muted);
+  cursor: pointer;
+}

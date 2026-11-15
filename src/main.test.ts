@@ -1,0 +1,45 @@
+import { readFileSync } from "node:fs";
+import { beforeEach, expect, it, vi } from "vitest";
+
+beforeEach(() => {
+  localStorage.clear();
+  vi.resetModules();
+  const html = readFileSync("index.html", "utf8");
+  document.body.innerHTML = new DOMParser().parseFromString(html, "text/html").body.innerHTML;
+});
+
+const join = (name: string, courseId: string) => {
+  document.querySelector<HTMLInputElement>("#player-name")!.value = name;
+  document.querySelector<HTMLSelectElement>("#player-course")!.value = courseId;
+  document.querySelector<HTMLFormElement>("#add-player")!.requestSubmit();
+};
+
+it("参加するとコースの行き先とおみやげがチェックリストで表示される", async () => {
+  await import("./main");
+  join("はなこ", "show");
+
+  const card = document.querySelector(".card")!;
+  expect(card.querySelector("h2")?.textContent).toBe("はなこ");
+  expect(card.querySelectorAll("input[type=checkbox]")).toHaveLength(9);
+  expect(card.textContent).toContain("シドニー オペラ");
+  expect(card.textContent).toContain("マグカップ");
+});
+
+it("チェックすると進捗が増え、全部チェックでコンプリートになる", async () => {
+  await import("./main");
+  join("たろう", "nature");
+
+  const boxes = () => document.querySelectorAll<HTMLInputElement>(".card input[type=checkbox]");
+  boxes()[0]!.click();
+  expect(document.querySelector(".progress")?.textContent).toBe("1 / 9");
+
+  for (let i = 1; i < 9; i++) boxes()[i]!.click();
+  expect(document.querySelector(".progress")?.textContent).toBe("🎉 コンプリート！");
+});
+
+it("名前はHTMLとして解釈されない", async () => {
+  await import("./main");
+  join("<img src=x>", "nature");
+  expect(document.querySelector(".card img")).toBeNull();
+  expect(document.querySelector(".card h2")?.textContent).toBe("<img src=x>");
+});
