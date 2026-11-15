@@ -53,13 +53,15 @@ it("サイコロをふると1〜6の目が表示される", async () => {
   expect(Number.isInteger(value)).toBe(true);
 });
 
-it("冒険アクティビティコースと世界のグルメコースも選べる", async () => {
+it("冒険アクティビティ・世界のグルメ・古代文明ツアーの各コースも選べる", async () => {
   await import("./checklist");
   join("じろう", "adventure");
   join("さくら", "gourmet");
+  join("けんた", "ancient");
 
-  const [adventure, gourmet] = document.querySelectorAll(".card");
+  const [adventure, gourmet, ancient] = document.querySelectorAll(".card");
   expect(adventure?.textContent).toContain("イグアスの滝");
   expect(gourmet?.textContent).toContain("リオデジャネイロ シュラスコ");
   expect(gourmet?.querySelectorAll("input[type=checkbox]")).toHaveLength(9);
+  expect(ancient?.textContent).toContain("ナスカ ナスカの地上絵");
 });

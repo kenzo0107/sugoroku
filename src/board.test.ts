@@ -29,9 +29,9 @@ const reachable = (from: number, edges: readonly (readonly number[])[]): Set<num
 };
 
 describe("盤面", () => {
-  it("東京から飛行機でソウルの空港へ行き、青島・南京・上海と続く", () => {
+  it("東京から飛行機でソウルの空港へ行き、北京・青島・南京・上海と続く", () => {
     expect(BOARD[0]).toMatchObject({ kind: "start", name: "東京", at: [35.68, 139.69] });
-    expect(namesAlong(0, indexOfName("上海"))).toEqual(["東京", "ソウル", "青島", "南京", "上海"]);
+    expect(namesAlong(0, indexOfName("上海"))).toEqual(["東京", "ソウル", "北京 万里の長城", "青島", "南京", "上海"]);
     expect(squareAt(indexOfName("ソウル")).kind).toBe("airport");
   });
 

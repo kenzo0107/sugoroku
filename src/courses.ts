@@ -7,7 +7,7 @@ export type Course = {
   spots: Item[];
 };
 
-export type CourseId = "nature" | "show" | "adventure" | "gourmet";
+export type CourseId = "nature" | "show" | "adventure" | "gourmet" | "ancient";
 
 export const SOUVENIRS: Item[] = [
   { id: "cookie", name: "クッキー" },
@@ -66,6 +66,19 @@ export const COURSES: Record<CourseId, Course> = {
       { id: "istanbul-kebab", name: "イスタンブール ケバブサンド" },
       { id: "chicago-burger", name: "シカゴ ハンバーガー" },
       { id: "rio-churrasco", name: "リオデジャネイロ シュラスコ" },
+    ],
+  },
+  ancient: {
+    id: "ancient",
+    name: "古代文明ツアーコース",
+    emoji: "🏛️",
+    spots: [
+      { id: "giza", name: "ギザ ピラミッド" },
+      { id: "rome", name: "ローマ コロッセオ" },
+      { id: "stonehenge", name: "ツールズベリー ストーンヘンジ" },
+      { id: "beijing", name: "北京 万里の長城" },
+      { id: "chichen-itza", name: "メリダ チチェン・イッツァ" },
+      { id: "nazca", name: "ナスカ ナスカの地上絵" },
     ],
   },
 };
