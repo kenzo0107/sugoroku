@@ -5,6 +5,7 @@
   --muted: #6b6b6b;
   --nature: #2e8b57;
   --show: #c2185b;
+  --ancient: #7b1fa2;
   --gold: #f9a825;
   font-family: "Hiragino Maru Gothic ProN", "Rounded Mplus 1c", system-ui, sans-serif;
   color: var(--text);
@@ -95,6 +96,10 @@ main {
 
 .card.course-show {
   --accent: var(--show);
+}
+
+.card.course-ancient {
+  --accent: var(--ancient);
 }
 
 .card.complete {
