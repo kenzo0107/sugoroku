@@ -11,10 +11,6 @@
       <a class="board-link" href="./japan.html">🗾 <ruby>日本一周<rt>にほんいっしゅう</rt></ruby>すごろくへ</a>
     </header>
     <main>
-      <section class="dice">
-        <button id="roll" type="button" class="dice-button">🎲 サイコロをふる</button>
-        <output id="dice-result" class="dice-result" aria-live="polite"></output>
-      </section>
       <form id="add-player" class="add-player">
         <input id="player-name" type="text" placeholder="なまえ" maxlength="20" required />
         <select id="player-course" required></select>
@@ -22,6 +18,14 @@
       </form>
       <section id="players" class="players"></section>
     </main>
+    <div id="dice-stage" class="dice-stage" hidden>
+      <div class="dice-mover"></div>
+      <p class="dice-caption"></p>
+    </div>
+    <div class="dice-dock">
+      <output id="dice-result" class="dice-result" aria-live="polite"></output>
+      <button id="roll" type="button" class="dice-button">🎲 サイコロをふる</button>
+    </div>
     <script type="module" src="/src/checklist.ts"></script>
   </body>
 </html>

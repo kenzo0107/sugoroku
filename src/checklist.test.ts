@@ -13,6 +13,8 @@ beforeEach(() => {
   openPage("index.html");
 });
 
+const settle = () => new Promise((resolve) => setTimeout(resolve));
+
 const join = (name: string, courseId: string) => {
   document.querySelector<HTMLInputElement>("#player-name")!.value = name;
   document.querySelector<HTMLSelectElement>("#player-course")!.value = courseId;
@@ -52,6 +54,7 @@ it("名前はHTMLとして解釈されない", async () => {
 it("サイコロをふると1〜6の目が表示される", async () => {
   await import("./checklist");
   document.querySelector<HTMLButtonElement>("#roll")!.click();
+  await settle();
   const value = Number(document.querySelector(".dice-number")?.textContent);
   expect(value).toBeGreaterThanOrEqual(1);
   expect(value).toBeLessThanOrEqual(6);
@@ -81,7 +84,7 @@ it("参加者を何人追加しても、サイコロは1回のクリックで1�
     childList: true,
   });
   document.querySelector<HTMLButtonElement>("#roll")!.click();
-  await Promise.resolve();
+  await settle();
   expect(changes).toBe(1);
 });
 

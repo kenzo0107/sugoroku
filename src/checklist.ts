@@ -1,5 +1,6 @@
 import "./style.css";
 import { faceOf, rollDie } from "./dice";
+import { createDie, playRoll } from "./diceAnimation";
 import { BOARDS, COURSES, type Item, isBoardId, isCourseId } from "./courses";
 import { toBase, toKana, toRubyNodes } from "./ruby";
 import {
@@ -29,6 +30,9 @@ const courseSelect = $<HTMLSelectElement>("#player-course");
 const playersSection = $<HTMLElement>("#players");
 const rollButton = $<HTMLButtonElement>("#roll");
 const diceResult = $<HTMLOutputElement>("#dice-result");
+const diceStage = $<HTMLElement>("#dice-stage");
+const diceMover = $<HTMLElement>(".dice-mover");
+const diceCaption = $<HTMLElement>(".dice-caption");
 
 const el = <K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -123,16 +127,32 @@ form.addEventListener("submit", (e) => {
   nameInput.focus();
 });
 
-rollButton.addEventListener("click", () => {
+const die = createDie();
+diceMover.append(die);
+
+let hideTimer: ReturnType<typeof setTimeout> | undefined;
+const hideStage = () => {
+  diceStage.hidden = true;
+};
+diceStage.addEventListener("click", hideStage);
+
+rollButton.addEventListener("click", async () => {
   const value = rollDie();
+  clearTimeout(hideTimer);
+  rollButton.disabled = true;
+  diceCaption.textContent = "";
+  diceStage.hidden = false;
+  try {
+    await playRoll(diceMover, die, value);
+  } finally {
+    rollButton.disabled = false;
+  }
+  diceCaption.textContent = `${value} がでた！`;
   diceResult.replaceChildren(
     el("span", { className: "dice-face" }, faceOf(value)),
     el("span", { className: "dice-number" }, String(value)),
   );
-  // 同じ目が続いても毎回アニメーションさせるため、クラスを付け直す前にリフローを挟む
-  diceResult.classList.remove("rolling");
-  void diceResult.offsetWidth;
-  diceResult.classList.add("rolling");
+  hideTimer = setTimeout(hideStage, 1500);
 });
 
 render();

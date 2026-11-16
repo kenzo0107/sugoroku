@@ -52,7 +52,7 @@ body {
 main {
   max-width: 1100px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 16px 16px 104px;
 }
 
 .add-player {
@@ -211,13 +211,14 @@ rt {
   cursor: pointer;
 }
 
-.dice {
+.dice-dock {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 20;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 16px;
-  margin-bottom: 24px;
-  min-height: 80px;
+  gap: 8px;
 }
 
 .dice-button {
@@ -226,45 +227,99 @@ rt {
   font-weight: bold;
   padding: 14px 24px;
   border: none;
-  border-radius: 12px;
+  border-radius: 999px;
   background: var(--show);
   color: #fff;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.25);
 }
 
-.dice-result {
+.dice-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.dice-result:not(:empty) {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: var(--card);
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.2);
 }
 
 .dice-face {
-  font-size: 4rem;
+  font-size: 2.2rem;
   line-height: 1;
 }
 
 .dice-number {
-  font-size: 2.5rem;
+  font-size: 1.6rem;
   font-weight: bold;
 }
 
-.dice-result.rolling {
-  animation: roll 0.5s ease-out;
+.dice-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  background: rgb(0 0 0 / 0.35);
+  perspective: 800px;
+  overflow: hidden;
 }
 
-@keyframes roll {
-  0% {
-    transform: rotate(-360deg) scale(0.3);
-    opacity: 0;
-  }
-  100% {
-    transform: rotate(0) scale(1);
-    opacity: 1;
-  }
+.dice-stage[hidden] {
+  display: none;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .dice-result.rolling {
-    animation: none;
-  }
+.dice-mover {
+  transform-style: preserve-3d;
+}
+
+.die {
+  --size: 104px;
+  --half: 52px;
+  position: relative;
+  width: var(--size);
+  height: var(--size);
+  transform-style: preserve-3d;
+}
+
+.die-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  padding: 12px;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: inset 0 0 0 2px #e0e0e0, inset 0 -6px 10px rgb(0 0 0 / 0.08);
+  backface-visibility: hidden;
+}
+
+.pip {
+  place-self: center;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #2b2b2b;
+}
+
+.die-face-1 .pip {
+  width: 100%;
+  background: #d32f2f;
+}
+
+.dice-caption {
+  margin: 0;
+  min-height: 1.2em;
+  color: #fff;
+  font-size: 2.4rem;
+  font-weight: bold;
+  text-shadow: 0 2px 6px rgb(0 0 0 / 0.5);
 }
