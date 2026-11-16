@@ -4,7 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest";
 beforeEach(() => {
   localStorage.clear();
   vi.resetModules();
-  const html = readFileSync("checklist.html", "utf8");
+  const html = readFileSync("index.html", "utf8");
   document.body.innerHTML = new DOMParser().parseFromString(html, "text/html").body.innerHTML;
 });
 
