@@ -1,6 +1,7 @@
 import "./style.css";
 import { faceOf, rollDie } from "./dice";
-import { COURSES, type Item, isCourseId, SOUVENIRS } from "./courses";
+import { BOARDS, COURSES, type Item, isBoardId, isCourseId } from "./courses";
+import { toBase, toKana, toRubyNodes } from "./ruby";
 import {
   addPlayer,
   loadPlayers,
@@ -11,7 +12,10 @@ import {
   toggleCheck,
 } from "./state";
 
-let players = loadPlayers();
+const boardId = document.body.dataset.board;
+const board = BOARDS[isBoardId(boardId) ? boardId : "world"];
+
+let players = loadPlayers(board);
 
 const $ = <T extends HTMLElement>(selector: string): T => {
   const found = document.querySelector<T>(selector);
@@ -38,7 +42,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(
 
 const update = (next: Player[]): void => {
   players = next;
-  savePlayers(players);
+  savePlayers(players, board);
   render();
 };
 
@@ -46,7 +50,7 @@ const checklist = (player: Player, title: string, items: Item[]) =>
   el(
     "fieldset",
     { className: "checklist" },
-    el("legend", {}, title),
+    el("legend", {}, ...toRubyNodes(title)),
     ...items.map((item) => {
       const checkbox = el("input", {
         type: "checkbox",
@@ -55,7 +59,7 @@ const checklist = (player: Player, title: string, items: Item[]) =>
       checkbox.addEventListener("change", () =>
         update(toggleCheck(players, player.id, item.id)),
       );
-      return el("label", { className: "item" }, checkbox, el("span", {}, item.name));
+      return el("label", { className: "item" }, checkbox, el("span", {}, ...toRubyNodes(item.name)));
     }),
   );
 
@@ -64,9 +68,9 @@ const playerCard = (player: Player) => {
   const { done, total } = progress(player);
   const complete = done === total;
 
-  const removeButton = el("button", { type: "button", className: "remove" }, "削除");
+  const removeButton = el("button", { type: "button", className: "remove" }, "けす");
   removeButton.addEventListener("click", () => {
-    if (confirm(`${player.name} さんを削除しますか？`)) {
+    if (confirm(`${player.name} さんを けしますか？`)) {
       update(removePlayer(players, player.id));
     }
   });
@@ -78,7 +82,7 @@ const playerCard = (player: Player) => {
       "header",
       {},
       el("h2", {}, player.name),
-      el("p", { className: "course-name" }, `${course.emoji} ${course.name}`),
+      el("p", { className: "course-name" }, `${course.emoji} `, ...toRubyNodes(course.name)),
       el(
         "p",
         { className: "progress" },
@@ -86,8 +90,8 @@ const playerCard = (player: Player) => {
       ),
       el("progress", { max: total, value: done }),
     ),
-    checklist(player, "行き先", course.spots),
-    checklist(player, "おみやげ", SOUVENIRS),
+    checklist(player, "行{い}き先{さき}", course.spots),
+    ...(course.souvenirs.length > 0 ? [checklist(player, "おみやげ", course.souvenirs)] : []),
     removeButton,
   );
 };
@@ -95,15 +99,18 @@ const playerCard = (player: Player) => {
 const render = (): void => {
   playersSection.replaceChildren(
     ...(players.length === 0
-      ? [el("p", { className: "empty" }, "なまえとコースを選んで参加しよう！")]
+      ? [el("p", { className: "empty" }, ...toRubyNodes("なまえとコースを選{えら}んで参加{さんか}しよう！"))]
       : players.map(playerCard)),
   );
 };
 
 courseSelect.append(
-  ...Object.values(COURSES).map((c) =>
-    el("option", { value: c.id }, `${c.emoji} ${c.name}`),
-  ),
+  ...board.courseIds.map((id) => {
+    const { emoji, name } = COURSES[id];
+    // <option> の中には <ruby> を置けないため、日本一周の盤面ではひらがなに開いて表示する
+    const label = board.id === "japan" ? toKana(name) : toBase(name);
+    return el("option", { value: id }, `${emoji} ${label}`);
+  }),
 );
 
 form.addEventListener("submit", (e) => {

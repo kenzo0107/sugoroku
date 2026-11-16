@@ -1,11 +1,16 @@
 import { readFileSync } from "node:fs";
-import { beforeEach, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const openPage = (file: string) => {
+  const body = new DOMParser().parseFromString(readFileSync(file, "utf8"), "text/html").body;
+  document.body.innerHTML = body.innerHTML;
+  document.body.dataset.board = body.dataset.board ?? "";
+};
 
 beforeEach(() => {
   localStorage.clear();
   vi.resetModules();
-  const html = readFileSync("index.html", "utf8");
-  document.body.innerHTML = new DOMParser().parseFromString(html, "text/html").body.innerHTML;
+  openPage("index.html");
 });
 
 const join = (name: string, courseId: string) => {
@@ -78,4 +83,42 @@ it("参加者を何人追加しても、サイコロは1回のクリックで1�
   document.querySelector<HTMLButtonElement>("#roll")!.click();
   await Promise.resolve();
   expect(changes).toBe(1);
+});
+
+describe("日本一周すごろく", () => {
+  beforeEach(() => openPage("japan.html"));
+
+  it("日本一周の5コースだけが選べ、名前はひらがなで表示される", async () => {
+    await import("./checklist");
+    const options = [...document.querySelectorAll("#player-course option")].map((o) => o.textContent);
+    expect(options).toEqual([
+      "🏮 おまつりめぐりコース",
+      "🏯 おしろめぐりコース",
+      "🍜 おいしいものコース",
+      "♨️ おんせんめぐりコース",
+      "📸 ばえスポットコース",
+    ]);
+  });
+
+  it("行き先6つにふりがなが付き、おみやげ欄はない", async () => {
+    await import("./checklist");
+    join("けんた", "castle");
+
+    const card = document.querySelector(".card")!;
+    expect(card.querySelectorAll("input[type=checkbox]")).toHaveLength(6);
+    expect(card.textContent).not.toContain("おみやげ");
+    const himeji = [...card.querySelectorAll("ruby")].find((r) => r.firstChild?.textContent === "姫路城");
+    expect(himeji?.querySelector("rt")?.textContent).toBe("ひめじじょう");
+    expect(document.querySelector(".progress")?.textContent).toBe("0 / 6");
+  });
+
+  it("世界のすごろくの参加者とは混ざらない", async () => {
+    await import("./checklist");
+    join("さくら", "onsen");
+
+    vi.resetModules();
+    openPage("index.html");
+    await import("./checklist");
+    expect(document.querySelectorAll(".card")).toHaveLength(0);
+  });
 });

@@ -1,4 +1,4 @@
-import { type CourseId, isCourseId, itemsOf } from "./courses";
+import { BOARDS, type Board, type CourseId, isCourseId, itemsOf } from "./courses";
 
 export type Player = {
   id: string;
@@ -6,8 +6,6 @@ export type Player = {
   courseId: CourseId;
   checked: string[];
 };
-
-const STORAGE_KEY = "sugoroku:players";
 
 export const addPlayer = (
   players: Player[],
@@ -40,24 +38,28 @@ export const progress = (player: Player): { done: number; total: number } => {
   };
 };
 
-const isPlayer = (value: unknown): value is Player => {
+const isPlayerOf = (board: Board) => (value: unknown): value is Player => {
   if (typeof value !== "object" || value === null) return false;
   const v = value as Record<string, unknown>;
   return (
     typeof v.id === "string" &&
     typeof v.name === "string" &&
     isCourseId(v.courseId) &&
+    board.courseIds.includes(v.courseId) &&
     Array.isArray(v.checked) &&
     v.checked.every((c) => typeof c === "string")
   );
 };
 
-export const loadPlayers = (storage: Storage = localStorage): Player[] => {
-  const raw = storage.getItem(STORAGE_KEY);
+export const loadPlayers = (
+  board: Board = BOARDS.world,
+  storage: Storage = localStorage,
+): Player[] => {
+  const raw = storage.getItem(board.storageKey);
   if (raw === null) return [];
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed.filter(isPlayer);
+    if (Array.isArray(parsed)) return parsed.filter(isPlayerOf(board));
   } catch (e) {
     console.warn("保存データを読み込めなかったため初期化します", e);
   }
@@ -66,7 +68,8 @@ export const loadPlayers = (storage: Storage = localStorage): Player[] => {
 
 export const savePlayers = (
   players: Player[],
+  board: Board = BOARDS.world,
   storage: Storage = localStorage,
 ): void => {
-  storage.setItem(STORAGE_KEY, JSON.stringify(players));
+  storage.setItem(board.storageKey, JSON.stringify(players));
 };

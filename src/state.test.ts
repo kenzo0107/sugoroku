@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { BOARDS } from "./courses";
 import {
   addPlayer,
   loadPlayers,
@@ -68,5 +69,23 @@ describe("保存と読み込み", () => {
       JSON.stringify([{ id: "x", name: "X", courseId: "unknown", checked: [] }]),
     );
     expect(loadPlayers()).toEqual([]);
+  });
+
+  it("日本一周の盤面は世界の盤面と別々に保存される", () => {
+    const japan = toggleCheck(addPlayer([], "J", "onsen", "j"), "j", "kusatsu-onsen");
+    savePlayers(japan, BOARDS.japan);
+    expect(loadPlayers(BOARDS.japan)).toEqual(japan);
+    expect(loadPlayers(BOARDS.world)).toEqual([]);
+  });
+
+  it("ほかの盤面のコースのプレイヤーは読み込まない", () => {
+    savePlayers(addPlayer([], "J", "onsen", "j"), BOARDS.world);
+    expect(loadPlayers(BOARDS.world)).toEqual([]);
+  });
+});
+
+describe("日本一周のコース", () => {
+  it("おみやげはなく行き先6つだけで数える", () => {
+    expect(progress(addPlayer([], "A", "castle", "a")[0]!)).toEqual({ done: 0, total: 6 });
   });
 });
