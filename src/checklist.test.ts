@@ -65,3 +65,17 @@ it("冒険アクティビティ・世界のグルメ・古代文明ツアーの�
   expect(gourmet?.querySelectorAll("input[type=checkbox]")).toHaveLength(9);
   expect(ancient?.textContent).toContain("ナスカ ナスカの地上絵");
 });
+
+it("参加者を何人追加しても、サイコロは1回のクリックで1回だけふられる", async () => {
+  await import("./checklist");
+  join("たろう", "nature");
+  join("はなこ", "show");
+  const result = document.querySelector("#dice-result")!;
+  let changes = 0;
+  new MutationObserver((records) => (changes += records.length)).observe(result, {
+    childList: true,
+  });
+  document.querySelector<HTMLButtonElement>("#roll")!.click();
+  await Promise.resolve();
+  expect(changes).toBe(1);
+});

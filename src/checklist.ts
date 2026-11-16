@@ -39,19 +39,7 @@ const el = <K extends keyof HTMLElementTagNameMap>(
 const update = (next: Player[]): void => {
   players = next;
   savePlayers(players);
-  rollButton.addEventListener("click", () => {
-  const value = rollDie();
-  diceResult.replaceChildren(
-    el("span", { className: "dice-face" }, faceOf(value)),
-    el("span", { className: "dice-number" }, String(value)),
-  );
-  // 同じ目が続いても毎回アニメーションさせるため、クラスを付け直す前にリフローを挟む
-  diceResult.classList.remove("rolling");
-  void diceResult.offsetWidth;
-  diceResult.classList.add("rolling");
-});
-
-render();
+  render();
 };
 
 const checklist = (player: Player, title: string, items: Item[]) =>
