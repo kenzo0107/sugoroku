@@ -34,7 +34,7 @@ export const COURSES: Record<CourseId, Course> = {
     name: "世界のショーとダンスコース",
     emoji: "💃",
     spots: [
-      { id: "bali", name: "バリ島 ガムラン" },
+      { id: "bali", name: "ジャカルタ ガムラン" },
       { id: "marrakech", name: "マラケシュ ベリーダンス" },
       { id: "vienna", name: "ウィーン クラシック音楽" },
       { id: "las-vegas", name: "ラスベガス マジックショー" },
@@ -60,7 +60,7 @@ export const COURSES: Record<CourseId, Course> = {
     name: "世界のグルメコース",
     emoji: "🍽️",
     spots: [
-      { id: "delhi-curry", name: "デリー インドカレー" },
+      { id: "delhi-curry", name: "インドカレー" },
       { id: "cape-town-game-meat", name: "ケープタウン ゲームミート" },
       { id: "paris-galette", name: "パリ ガレット" },
       { id: "istanbul-kebab", name: "イスタンブール ケバブサンド" },

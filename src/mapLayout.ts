@@ -51,9 +51,9 @@ export const anchorPoints = (board: readonly Square[], next: Graph): Point[] => 
 
 const clamp = (value: number, min: number, max: number): number => Math.min(max, Math.max(min, value));
 
-export const spreadOut = (anchors: readonly Point[], minDistance: number, iterations = 400): Point[] => {
+export const spreadOut = (anchors: readonly Point[], sizes: number | readonly number[], iterations = 400): Point[] => {
   const points = anchors.map((p) => ({ ...p }));
-  const r = minDistance / 2;
+  const sizeOf = (i: number): number => (typeof sizes === "number" ? sizes : sizes[i]!);
   for (let it = 0; it < iterations; it++) {
     const settling = it >= iterations * 0.75;
     if (!settling) {
@@ -69,6 +69,7 @@ export const spreadOut = (anchors: readonly Point[], minDistance: number, iterat
         const dx = b.x - a.x;
         const dy = b.y - a.y;
         const d = Math.hypot(dx, dy);
+        const minDistance = (sizeOf(i) + sizeOf(j)) / 2;
         if (d >= minDistance) continue;
         // 完全に重なった2点は方向が決まらないので、添字から決まる向きに押し出して結果を毎回同じにする
         const [ux, uy] = d === 0 ? [Math.cos(i + j), Math.sin(i + j)] : [dx / d, dy / d];
@@ -79,7 +80,8 @@ export const spreadOut = (anchors: readonly Point[], minDistance: number, iterat
         b.y += uy * push;
       }
     }
-    points.forEach((p) => {
+    points.forEach((p, i) => {
+      const r = sizeOf(i) / 2;
       p.x = clamp(p.x, r, MAP.width - r);
       p.y = clamp(p.y, r, MAP.height - r);
     });
@@ -87,8 +89,8 @@ export const spreadOut = (anchors: readonly Point[], minDistance: number, iterat
   return points;
 };
 
-export const boardLayout = (board: readonly Square[], next: Graph, minDistance: number): Point[] =>
-  spreadOut(anchorPoints(board, next), minDistance);
+export const boardLayout = (board: readonly Square[], next: Graph, sizeOf: (square: Square) => number): Point[] =>
+  spreadOut(anchorPoints(board, next), board.map(sizeOf));
 
 const fmt = (n: number): string => n.toFixed(2);
 
@@ -102,3 +104,30 @@ const segment = (a: Point, b: Point): string => {
 
 export const routePath = (points: readonly Point[], next: Graph): string =>
   points.flatMap((a, i) => (next[i] ?? []).map((j) => segment(a, points[j]!))).join("");
+
+const ARC_BEND = 0.2;
+
+const towards = (from: Point, to: Point, distance: number): Point => {
+  const d = Math.hypot(to.x - from.x, to.y - from.y);
+  return d === 0 ? to : { x: to.x + ((from.x - to.x) * distance) / d, y: to.y + ((from.y - to.y) * distance) / d };
+};
+
+export const flightPath = (a: Point, b: Point, inset: number): string => {
+  if (crossesEdge(a, b)) {
+    const dx = shortestDx(a, b);
+    const edge = dx > 0 ? MAP.width : 0;
+    const y = a.y + ((b.y - a.y) * (edge - a.x)) / dx;
+    const entry = { x: MAP.width - edge, y };
+    const end = towards(entry, b, inset);
+    return `M${fmt(a.x)} ${fmt(a.y)}L${edge} ${fmt(y)}M${fmt(entry.x)} ${fmt(entry.y)}L${fmt(end.x)} ${fmt(end.y)}`;
+  }
+  const control = {
+    x: (a.x + b.x) / 2 - (b.y - a.y) * ARC_BEND,
+    y: (a.y + b.y) / 2 + (b.x - a.x) * ARC_BEND,
+  };
+  const end = towards(control, b, inset);
+  return `M${fmt(a.x)} ${fmt(a.y)}Q${fmt(control.x)} ${fmt(control.y)} ${fmt(end.x)} ${fmt(end.y)}`;
+};
+
+export const flightPaths = (points: readonly Point[], flights: Graph, inset: number): string[] =>
+  points.flatMap((a, i) => (flights[i] ?? []).map((j) => flightPath(a, points[j]!, inset)));

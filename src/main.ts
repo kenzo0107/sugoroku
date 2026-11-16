@@ -1,5 +1,5 @@
 import "./style.css";
-import { BOARD, directionName, NEXT, nextOf, REGION_NAMES, type Square } from "./board";
+import { BOARD, directionName, FLIGHTS, flightsOf, isChecklistSquare, NEXT, nextOf, REGION_NAMES, type Square } from "./board";
 import { COURSES, isCourseId, SOUVENIRS } from "./courses";
 import { faceOf, rollDie } from "./dice";
 import {
@@ -19,7 +19,7 @@ import {
   roll,
   saveGame,
 } from "./game";
-import { boardLayout, MAP, type Point, routePath } from "./mapLayout";
+import { boardLayout, flightPaths, MAP, type Point, routePath } from "./mapLayout";
 import { LAND_PATH } from "./worldMap";
 
 const PLAYER_COLORS = ["#e53935", "#1e88e5", "#43a047", "#fb8c00"] as const;
@@ -35,6 +35,7 @@ const SQUARE_ICONS: Record<Square["kind"], string> = {
   hotel: "🏨",
   meetup: "🤝",
   strike: "🚫",
+  honolulu: "🌺",
 };
 const SQUARE_HELP: Record<Square["kind"], string> = {
   start: "スタート",
@@ -43,10 +44,11 @@ const SQUARE_HELP: Record<Square["kind"], string> = {
   point: "自分のコースのポイントなら、目があまっても止まれる。サイコロで3〜5が出たらチェック",
   souvenir: "止まったらおみやげをゲット",
   again: "もう1回サイコロをふれる",
-  airport: "次の空港へ飛べる（ストライキ中は飛べない）",
+  airport: "決まった行き先へ飛べる（ストライキ中は飛べない）",
   hotel: "夜になる。5マス以内にいる人はホテルへ移動",
   meetup: "ほかの人のいるマスへ移動できる",
   strike: "ここに誰かがいる間は空路・ホノルル行きが使えない",
+  honolulu: "全部そろった人はここでホノルルチャレンジ。成功したら東京に帰ってゴール",
 };
 
 const app = document.querySelector<HTMLElement>("#app");
@@ -57,9 +59,15 @@ let entries: Entry[] = [];
 let justRolled = false;
 
 const MARKER_SIZE = 6.5;
-const LAYOUT = boardLayout(BOARD, NEXT, MARKER_SIZE * 1.35);
+const CHECKLIST_SCALE = 1.4;
+const LAYOUT = boardLayout(BOARD, NEXT, (s) => MARKER_SIZE * 1.35 * (isChecklistSquare(s) ? CHECKLIST_SCALE : 1));
+const FLIGHT_PATHS = flightPaths(LAYOUT, FLIGHTS, MARKER_SIZE * 0.6)
+  .map((d) => `<path class="flight" d="${d}" marker-end="url(#flight-arrow)"/>`)
+  .join("");
 const MAP_SVG = `<svg class="map-svg" viewBox="0 0 ${MAP.width} ${MAP.height}" aria-hidden="true">
-<path class="land" d="${LAND_PATH}"/><path class="route" d="${routePath(LAYOUT, NEXT)}"/></svg>`;
+<defs><marker id="flight-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+<path d="M0 0L10 5L0 10z"/></marker></defs>
+<path class="land" d="${LAND_PATH}"/><path class="route" d="${routePath(LAYOUT, NEXT)}"/>${FLIGHT_PATHS}</svg>`;
 
 type Props<K extends keyof HTMLElementTagNameMap> = Omit<Partial<HTMLElementTagNameMap[K]>, "style"> & {
   style?: string;
@@ -102,10 +110,11 @@ const squareTile = (g: Game, square: Square, index: number, point: Point) => {
       : square.kind === "souvenir"
         ? (SOUVENIR_ICONS[square.itemId] ?? "🎁")
         : SQUARE_ICONS[square.kind];
-  const label = square.kind === "point" ? square.label : square.name;
+  const label = square.label ?? square.name;
   const here = g.players.filter((p) => p.rank === null && p.position === index);
   const classes = ["square", `kind-${square.kind}`, `region-${square.region}`];
   if (square.kind === "point") classes.push(`course-${square.courseId}`);
+  if (isChecklistSquare(square)) classes.push("checklist");
   if (g.phase.type !== "over" && currentPlayer(g).position === index) classes.push("current");
   return el(
     "div",
@@ -125,9 +134,12 @@ const actions = (g: Game): HTMLElement[] => {
   const rollWith = () => setGame(roll(g, rollDie()), true);
   switch (g.phase.type) {
     case "move":
-      return isComplete(player)
+      if (!isComplete(player)) return [button("🎲 サイコロをふる", rollWith)];
+      return BOARD[player.position]?.kind === "honolulu"
         ? [button("🌺 ホノルルチャレンジ（1・3・5で成功）", rollWith)]
-        : [button("🎲 サイコロをふる", rollWith)];
+        : [button("🎲 サイコロをふる（ホノルルをめざそう）", rollWith)];
+    case "honolulu":
+      return [button("🌺 ホノルルチャレンジ（1・3・5で成功）", rollWith)];
     case "fork":
       return nextOf(player.position).map((to) =>
         button(`➡️ ${directionName(to)}方面へ`, () => setGame(chooseFork(g, to))),
@@ -136,8 +148,10 @@ const actions = (g: Game): HTMLElement[] => {
       return [button("🎲 チャレンジ（3〜5でチェック）", rollWith)];
     case "airport":
       return [
-        button("✈️ 次の空港へ飛ぶ", () => setGame(chooseAirport(g, true))),
-        button("とどまる", () => setGame(chooseAirport(g, false)), "action secondary"),
+        ...flightsOf(player.position).map((to) =>
+          button(`✈️ ${BOARD[to]?.name}へ飛ぶ`, () => setGame(chooseAirport(g, to))),
+        ),
+        button("とどまる", () => setGame(chooseAirport(g, null)), "action secondary"),
       ];
     case "meetup":
       return [
@@ -206,7 +220,7 @@ const gameView = (g: Game) => {
     "div",
     {
       className: "board",
-      style: `--marker:${(MARKER_SIZE / MAP.width) * 100}cqw;aspect-ratio:${MAP.width} / ${MAP.height}`,
+      style: `--marker:${(MARKER_SIZE / MAP.width) * 100}cqw;--checklist-scale:${CHECKLIST_SCALE};aspect-ratio:${MAP.width} / ${MAP.height}`,
       innerHTML: MAP_SVG,
     },
     ...BOARD.map((square, i) => squareTile(g, square, i, LAYOUT[i]!)),
@@ -283,9 +297,9 @@ const setupView = () => {
             "東京から出発して世界を旅します。自分のコースの行き先6か所とおみやげ3種を集めよう。",
             "自分のコースの行き先マスは、目があまっても止まれます。止まったらサイコロで3〜5が出ればチェック。",
             "おみやげマスに止まるとおみやげをゲット。",
-            "✈️ 空港：次の空港へ飛べます。⏩ もう1回：もう一度サイコロ。🤝 まちあわせ：ほかの人のマスへ移動できます。",
+            "✈️ 空港：決まった行き先へ飛べます。⏩ もう1回：もう一度サイコロ。🤝 まちあわせ：ほかの人のマスへ移動できます。",
             "🏨 ホテル：夜になり、5マス以内にいる人はホテルへ移動。🚫 ストライキ：誰かがいる間は空路とホノルル行きが使えません。",
-            "全部そろったら、次の番からホノルルチャレンジ。1・3・5が出たらゴール！",
+            "全部そろったらホノルルをめざそう。🌺 ホノルルのマスでチャレンジして、1・3・5が出たら東京に帰ってゴール！",
           ].map((t) => el("li", {}, t)),
         ),
       ),

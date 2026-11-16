@@ -1,10 +1,11 @@
 import { readFileSync } from "node:fs";
 import { beforeEach, expect, it, vi } from "vitest";
-import { BOARD } from "./board";
+import { BOARD, FLIGHTS } from "./board";
 import { newGame, saveGame } from "./game";
 
 beforeEach(() => {
   localStorage.clear();
+  vi.restoreAllMocks();
   vi.resetModules();
   vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: () => {} }));
   const html = readFileSync("index.html", "utf8");
@@ -64,18 +65,33 @@ it("盤面は世界地図の上に描かれ、手番の人がいるマスが目�
 
   expect(document.querySelector(".board .land")?.getAttribute("d")).toMatch(/^M/);
   expect(document.querySelector(".board .route")?.getAttribute("d")).toMatch(/^M/);
+  expect(document.querySelectorAll(".board .flight[marker-end]")).toHaveLength(FLIGHTS.flat().length);
   expect(document.querySelector(".square.current")?.classList.contains("kind-start")).toBe(true);
 });
 
-it("上海の分かれ道では、行き先の方面を選んで進める", async () => {
-  const shanghai = BOARD.findIndex((s) => s.name === "上海");
+it("青島の分かれ道では、行き先の方面を選んで進める", async () => {
+  const qingdao = BOARD.findIndex((s) => s.id === "qingdao");
   const game = newGame([{ name: "たろう", courseId: "nature" }]);
-  saveGame({ ...game, players: [{ ...game.players[0]!, position: shanghai }] });
+  saveGame({ ...game, players: [{ ...game.players[0]!, position: qingdao }] });
+  vi.spyOn(Math, "random").mockReturnValue(0);
   await import("./main");
   clickButton("サイコロをふる");
 
   const choices = [...document.querySelectorAll(".panel button")].map((b) => b.textContent);
-  expect(choices).toEqual(["➡️ 台北方面へ", "➡️ 香港方面へ"]);
-  clickButton("台北方面へ");
-  expect(document.querySelector(".kind-start .token, .square .token")?.closest(".square")?.getAttribute("title")).not.toMatch(/^上海/);
+  expect(choices).toEqual(["➡️ 上海方面へ", "➡️ 南京方面へ", "➡️ エアポート（中国東部）方面へ"]);
+  clickButton("上海方面へ");
+  expect(document.querySelector(".square .token")?.closest(".square")?.getAttribute("title")).toMatch(/^上海/);
+});
+
+it("空港では決まった行き先ごとに飛ぶボタンが出る", async () => {
+  const qingdao = BOARD.findIndex((s) => s.id === "qingdao");
+  const game = newGame([{ name: "たろう", courseId: "nature" }]);
+  saveGame({ ...game, players: [{ ...game.players[0]!, position: qingdao }] });
+  vi.spyOn(Math, "random").mockReturnValue(0);
+  await import("./main");
+  clickButton("サイコロをふる");
+  clickButton("エアポート（中国東部）方面へ");
+
+  const choices = [...document.querySelectorAll(".panel button")].map((b) => b.textContent);
+  expect(choices).toEqual(["✈️ ホノルルへ飛ぶ", "✈️ ロサンゼルスへ飛ぶ", "とどまる"]);
 });

@@ -1,4 +1,4 @@
-import { isPosition, nearestWithin, nextOf, type Square, squareAt } from "./board";
+import { flightsOf, isPosition, nearestWithin, nextOf, type Square, squareAt } from "./board";
 import { type CourseId, isCourseId, itemsOf } from "./courses";
 
 export const MAX_PLAYERS = 4;
@@ -6,7 +6,7 @@ export const POINT_SUCCESS: readonly number[] = [3, 4, 5];
 export const HONOLULU_SUCCESS: readonly number[] = [1, 3, 5];
 const HOTEL_RANGE = 5;
 const LOG_LIMIT = 30;
-const STORAGE_KEY = "sugoroku:game:v2";
+const STORAGE_KEY = "sugoroku:game:v3";
 
 export type Entry = { name: string; courseId: CourseId };
 
@@ -24,6 +24,7 @@ export type Phase =
   | { type: "fork"; steps: number }
   | { type: "point"; itemId: string }
   | { type: "airport" }
+  | { type: "honolulu" }
   | { type: "meetup" }
   | { type: "over" };
 
@@ -77,6 +78,9 @@ export const meetupTargets = (game: Game): GamePlayer[] => {
 const isOpenPoint = (player: GamePlayer, square: Square): square is Extract<Square, { kind: "point" }> =>
   square.kind === "point" && square.courseId === player.courseId && !player.checked.includes(square.itemId);
 
+const stopsAt = (player: GamePlayer, square: Square): boolean =>
+  isOpenPoint(player, square) || (square.kind === "honolulu" && isComplete(player));
+
 const updateCurrent = (game: Game, f: (p: GamePlayer) => GamePlayer): Game => ({
   ...game,
   players: game.players.map((p, i) => (i === game.current ? f(p) : p)),
@@ -111,12 +115,22 @@ const endTurn = (game: Game): Game => {
   return { ...game, current: next, phase: { type: "move" } };
 };
 
+const isWaitingAtHonolulu = (player: GamePlayer): boolean =>
+  squareAt(player.position).kind === "honolulu" && isComplete(player);
+
 const night = (game: Game): Game => {
   const players = game.players.map((p, i) => {
-    if (i === game.current || !isPlaying(p) || squareAt(p.position).kind === "hotel") return p;
+    if (i === game.current || !isPlaying(p) || squareAt(p.position).kind === "hotel" || isWaitingAtHonolulu(p)) return p;
     return { ...p, position: nearestWithin(p.position, HOTEL_RANGE, (s) => s.kind === "hotel") ?? p.position };
   });
   return addLog({ ...game, players }, "🌙 夜になった！近くにいる人はホテルへ");
+};
+
+const takeOff = (game: Game): Game => {
+  const player = currentPlayer(game);
+  if (flightsOf(player.position).length === 0) return endTurn(addLog(game, `${player.name}：この空港から出る便はない`));
+  if (isStrikeActive(game)) return endTurn(addLog(game, `${player.name}：ストライキ中で飛行機が飛ばない…`));
+  return { ...game, phase: { type: "airport" } };
 };
 
 const land = (game: Game): Game => {
@@ -138,9 +152,14 @@ const land = (game: Game): Game => {
       );
     case "again":
       return addLog({ ...game, phase: { type: "move" } }, `${player.name}：もう1回！`);
+    case "honolulu":
+      if (isComplete(player)) {
+        if (isStrikeActive(game)) return endTurn(addLog(game, `${player.name}：ストライキ中でホノルルチャレンジできない…`));
+        return addLog({ ...game, phase: { type: "honolulu" } }, `${player.name}：ホノルルに到着！1・3・5でゴール`);
+      }
+      return endTurn(game);
     case "airport":
-      if (isStrikeActive(game)) return endTurn(addLog(game, `${player.name}：ストライキ中で飛行機が飛ばない…`));
-      return { ...game, phase: { type: "airport" } };
+      return takeOff(game);
     case "hotel":
       return endTurn(night(game));
     case "meetup":
@@ -164,7 +183,7 @@ const advance = (game: Game, steps: number, firstStep?: number): Game => {
       );
     }
     position = targets[0]!;
-    if (isOpenPoint(player, squareAt(position))) break;
+    if (stopsAt(player, squareAt(position))) break;
   }
   return land(addLog(updateCurrent(game, (p) => ({ ...p, position })), `${player.name}：「${squareAt(position).name}」へ`));
 };
@@ -182,7 +201,10 @@ const honolulu = (game: Game, value: number): Game => {
   }
   const rank = game.players.filter((p) => !isPlaying(p)).length + 1;
   return endTurn(
-    addLog(updateCurrent(game, (p) => ({ ...p, rank })), `${player.name}：ホノルルチャレンジ成功！${rank}位でゴール 🎉`),
+    addLog(
+      updateCurrent(game, (p) => ({ ...p, position: nextOf(p.position)[0]!, rank })),
+      `${player.name}：ホノルルチャレンジ成功！東京に帰って${rank}位でゴール 🎉`,
+    ),
   );
 };
 
@@ -201,8 +223,13 @@ export const roll = (game: Game, value: number): Game => {
   }
   const rolled = { ...game, lastRoll: value };
   switch (game.phase.type) {
-    case "move":
-      return isComplete(currentPlayer(game)) ? honolulu(rolled, value) : move(rolled, value);
+    case "move": {
+      const player = currentPlayer(game);
+      const atHonolulu = squareAt(player.position).kind === "honolulu";
+      return isComplete(player) && atHonolulu ? honolulu(rolled, value) : move(rolled, value);
+    }
+    case "honolulu":
+      return honolulu(rolled, value);
     case "point":
       return pointChallenge(rolled, game.phase.itemId, value);
     default:
@@ -210,14 +237,11 @@ export const roll = (game: Game, value: number): Game => {
   }
 };
 
-export const chooseAirport = (game: Game, fly: boolean): Game => {
+export const chooseAirport = (game: Game, to: number | null): Game => {
   assertPhase(game, "airport");
-  if (!fly) return endTurn(game);
+  if (to === null) return endTurn(game);
   const player = currentPlayer(game);
-  let to = player.position;
-  do {
-    to = nextOf(to)[0]!;
-  } while (squareAt(to).kind !== "airport");
+  if (!flightsOf(player.position).includes(to)) throw new Error(`そこへは飛べません: ${to}`);
   return endTurn(addLog(updateCurrent(game, (p) => ({ ...p, position: to })), `${player.name}：✈️ ${squareAt(to).name}へひとっ飛び`));
 };
 
@@ -238,7 +262,7 @@ export const chooseMeetup = (game: Game, targetId: string | null): Game => {
   );
 };
 
-const PHASE_TYPES: readonly string[] = ["move", "fork", "point", "airport", "meetup", "over"];
+const PHASE_TYPES: readonly string[] = ["move", "fork", "point", "airport", "honolulu", "meetup", "over"];
 
 const isGamePlayer = (value: unknown): value is GamePlayer => {
   if (typeof value !== "object" || value === null) return false;

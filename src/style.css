@@ -357,6 +357,18 @@ main {
   stroke-linecap: round;
 }
 
+.flight {
+  fill: none;
+  stroke: #1565c0;
+  stroke-width: 0.5;
+  stroke-dasharray: 2 1;
+  opacity: 0.8;
+}
+
+#flight-arrow path {
+  fill: #1565c0;
+}
+
 .square {
   --tile: #ffffff;
   position: absolute;
@@ -400,6 +412,47 @@ main {
 .square.current {
   outline: 3px solid var(--gold);
   outline-offset: 2px;
+}
+
+/* clip-path を .square 自体にかけると下にはみ出す地名やコマまで切れるので、六角形は疑似要素で描く */
+.square.checklist {
+  --edge: #fff;
+  width: calc(var(--marker) * var(--checklist-scale));
+  background: none;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.35));
+}
+
+.square.checklist::before,
+.square.checklist::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  clip-path: polygon(25% 6.7%, 75% 6.7%, 100% 50%, 75% 93.3%, 25% 93.3%, 0 50%);
+}
+
+.square.checklist::before {
+  inset: 0;
+  background: var(--edge);
+}
+
+.square.checklist::after {
+  inset: 3px;
+  background: var(--tile);
+}
+
+.square.checklist.kind-point { --edge: var(--nature); }
+.square.checklist.kind-point.course-show { --edge: var(--show); }
+
+.square.checklist.current {
+  outline: none;
+  --edge: var(--gold);
+}
+
+.square.checklist .square-icon {
+  font-size: calc(var(--marker) * 0.5 * var(--checklist-scale));
 }
 
 .square-icon {
